@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-console.log(__dirname);
 
 app.get('/js/*', (req, res) => {
     res.header('Content-Type', 'text/javascript');

@@ -3,6 +3,14 @@ Financial planning using web components
 
 work in progress...
 
+# Features 
+
+* Add and manage transactions 
+* load and download transactions from csv files
+* localStorage only mode (no server or database required)
+
+    ...more in the future
+
 # Running the project
 
 To run the project with a persistent mongodb database and localStorage as cache you need to have docker installed and run `docker-compose up` from the root directory..

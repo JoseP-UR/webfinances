@@ -144,11 +144,12 @@ class MovementTable extends HTMLElement {
   }
 
   get lastId() {
-    const movements = JSON.parse(localStorage.getItem("movements"));
+    const movements = this.movements;
     if (!movements || movements.length === 0) {
       return 0;
     }
-    return movements[movements.length - 1].id;
+    const sortedMovements = movements.sort((a, b) => a.id - b.id);
+    return sortedMovements[sortedMovements.length - 1].id;
   }
 
   get total() {
@@ -194,15 +195,18 @@ class MovementTable extends HTMLElement {
   }
 
   handleDownload = () => {
-    //downloads all movements in a csv file
     const movements = this.movements;
     let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "description,amount,date,category,to,from\r\n";
+
     movements.forEach((movement) => {
-      const row = `${movement.id},${movement.description},${movement.amount},${movement.date},${movement.category},${movement.to},${movement.from}`;
+      const row = `${movement.description},${movement.amount},${movement.date},${movement.category},${movement.to},${movement.from}`;
       csvContent += row + "\r\n";
     });
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
+
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "movements.csv");
     document.body.appendChild(link);
@@ -222,24 +226,38 @@ class MovementTable extends HTMLElement {
         const rows = csv.split("\r\n");
         rows.forEach((row) => {
           const movement = row.split(",");
-          if (!movement[0]) {
+
+          if (!movement[0] || movement[0] === "description") {
             return;
           }
-          movements.push({
-            id: parseInt(movement[0]),
-            description: movement[1],
-            amount: parseFloat(movement[2]),
-            date: movement[3],
-            category: movement[4],
-            to: movement[5],
-            from: movement[6],
-          });
+
+          const newMovement = {
+            id: this.lastId + movements.length + 1,
+            description: movement[0],
+            amount: parseFloat(movement[1]),
+            date: movement[2],
+            category: movement[3],
+            to: movement[4],
+            from: movement[5],
+          };
+
+          if (!this.localMode) {
+            this._addMovementToServer(newMovement);
+          } else {
+            newMovement._id = newMovement.id;
+          }
+
+          movements.push(newMovement);
         });
-        this.movements = movements;
+
+        this.movements = [...this.movements, ...movements];
         this.updateTable();
       };
+
       reader.readAsText(file);
+      this.updateTable();
     };
+
     input.click();
   };
 
@@ -338,7 +356,8 @@ class MovementTable extends HTMLElement {
     this.isEditing = true;
     const id = e.target.dataset.id;
     const movement = this.movements.find((movement) => movement._id == id);
-    this.tbody.querySelector(`#movement-${id}`).innerHTML = `
+    const element = this.tbody.querySelector(`#movement-${movement.id}`);
+    this.tbody.querySelector(`#movement-${movement.id}`).innerHTML = `
             <td>${movement.id}</td>
             <td><input type="text" value="${movement.description}"></td>
             <td><input type="number" value="${movement.amount}"></td>
@@ -422,7 +441,6 @@ class MovementTable extends HTMLElement {
     this.updateTable();
   };
 
-
   handleAddMovement = async ({ detail: data }) => {
     data.id = this.lastId + 1;
     if (!this.localMode) {
@@ -433,6 +451,7 @@ class MovementTable extends HTMLElement {
   };
 
   _addMovementToServer = (data) => {
+    console.log(data);
     return fetch("/api/movements", {
       method: "POST",
       headers: {

@@ -38,7 +38,7 @@ class AddMovementForm extends HTMLElement {
             <label for="description"><b>Description</b></label>
             <input type="text" placeholder="Enter description" name="description" required>
             <label for="amount"><b>Amount</b></label>
-            <input type="number" placeholder="Enter amount" name="amount" required>
+            <input type="number" step="0.01" placeholder="Enter amount" name="amount" required>
             <label for="date"><b>Date</b></label>
             <input type="date" placeholder="Enter date" name="date" required>
             <label for="category"><b>Category</b></label>
@@ -69,7 +69,7 @@ class AddMovementForm extends HTMLElement {
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData);
         this.dispatchEvent(new CustomEvent('onAdd', { detail: data }));
-        // e.target.reset();
+        e.target.reset();
     }
 }
 

@@ -98,24 +98,30 @@ class MovementTable extends HTMLElement {
     this.currentMonth < 10 ? "0" + String(this.currentMonth) : this.currentMonth
   }/${new Date().getFullYear()}`;
   initialized = false;
+  localMode = false;
 
   get currentMonth() {
     return new Date().getMonth() + 1;
   }
 
   get movements() {
-    if (!this.initialized) {
+    if (!this.initialized && !this.localMode) {
       this.initialized = true;
-      localStorage.setItem("movements", JSON.stringify([]));
-      fetch("/api/movements")
-        .then((response) => response.json())
-        .then((movements) => {
-          this.movements = movements;
-          this.updateTable();
-        });
-      return [];
+      return this._serverMovements;
     }
     return JSON.parse(localStorage.getItem("movements"));
+  }
+
+  get _serverMovements() {
+    localStorage.setItem("movements", JSON.stringify([]));
+    this.updateTable();
+    fetch("/api/movements")
+      .then((response) => response.json())
+      .then((movements) => {
+        this.movements = movements;
+        this.updateTable();
+      });
+    return [];
   }
 
   set movements(movements) {
@@ -171,6 +177,7 @@ class MovementTable extends HTMLElement {
   }
 
   connectedCallback() {
+    this.localMode = this.getAttribute("localMode") === "true";
     this.updateTable();
     this.table
       .querySelector("#prevPageBtn")
@@ -284,7 +291,7 @@ class MovementTable extends HTMLElement {
                 <td>${movement.category}</td>
                 <td>${movement.to}</td>
                 <td>${movement.from}</td>
-                <td>${this.getActionButtons(movement.id)}</td>
+                <td>${this.getActionButtons(movement._id)}</td>
             `;
       this.tbody.appendChild(tr);
       tr.querySelector(".deleteBtn").addEventListener(
@@ -330,7 +337,7 @@ class MovementTable extends HTMLElement {
     }
     this.isEditing = true;
     const id = e.target.dataset.id;
-    const movement = this.movements.find((movement) => movement.id == id);
+    const movement = this.movements.find((movement) => movement._id == id);
     this.tbody.querySelector(`#movement-${id}`).innerHTML = `
             <td>${movement.id}</td>
             <td><input type="text" value="${movement.description}"></td>
@@ -361,6 +368,28 @@ class MovementTable extends HTMLElement {
     movement.to = inputs[4].value;
     movement.from = inputs[5].value;
 
+    if (!this.localMode) {
+      return this._updateOnServer(movement);
+    }
+    return this._updateOnLocal(movement);
+  };
+
+  _updateOnServer = (movement) => {
+    return fetch(`/api/movements/${movement._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(movement),
+    }).then(() => {
+      this._updateOnLocal(movement);
+    });
+  };
+
+  _updateOnLocal = (movement) => {
+    const movements = this.movements;
+    const index = movements.findIndex((m) => m.id == movement.id);
+    movements[index] = movement;
     this.movements = movements;
     this.updateTable();
     this.isEditing = false;
@@ -368,7 +397,24 @@ class MovementTable extends HTMLElement {
 
   handleDelete = (e) => {
     const id = e.target.dataset.id;
-    this.movements = this.movements.filter((movement) => movement.id != id);
+    if (!this.localMode) {
+      return this._deleteOnServer(id);
+    }
+    return this._deleteOnLocal(id);
+  };
+
+  _deleteOnServer = (id) => {
+    console.log(id);
+    return fetch(`/api/movements/${id}`, {
+      method: "DELETE",
+    }).then(() => {
+      this._deleteOnLocal(id);
+    });
+  };
+
+  _deleteOnLocal = (id) => {
+    console.log(id);
+    this.movements = this.movements.filter((movement) => movement._id != id);
     if (!this.movementsByMonthAndYear[this.selectedMonth]) {
       const months = Object.keys(this.movementsByMonthAndYear);
       this.selectedMonth = months[months.length - 1];
@@ -376,20 +422,36 @@ class MovementTable extends HTMLElement {
     this.updateTable();
   };
 
+
   handleAddMovement = async ({ detail: data }) => {
     data.id = this.lastId + 1;
-    fetch("/api/movements", {
+    if (!this.localMode) {
+      return await this._addMovementToServer(data);
+    }
+    data._id = data.id;
+    return this._addLocalMovement(data);
+  };
+
+  _addMovementToServer = (data) => {
+    return fetch("/api/movements", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     }).then(async (res) => {
-      const movements = this.movements;
-      movements.push(await res.json());
-      this.movements = movements;
-      this.updateTable();
+      const response = await res.json();
+      if (res.status === 200) {
+        this._addLocalMovement(response);
+      }
     });
+  };
+
+  _addLocalMovement = (data) => {
+    const movements = this.movements;
+    movements.push(data);
+    this.movements = movements;
+    this.updateTable();
   };
 }
 

@@ -38,6 +38,35 @@ app.post("/api/movements", async (req, res) => {
   );
 });
 
+app.put("/api/movements/:id", async (req, res) => {
+  const db = client.db("finances");
+  const collection = db.collection("movements");
+  delete req.body._id;
+  const result = await collection.updateOne(
+    {
+      _id: new mongodb.ObjectId(req.params.id),
+    },
+    {
+      $set: req.body,
+    }
+  );
+  res.json(
+    await collection.findOne({
+      _id: new mongodb.ObjectId(req.params.id),
+    })
+  );
+});
+
+
+app.delete("/api/movements/:id", async (req, res) => {
+  const db = client.db("finances");
+  const collection = db.collection("movements");
+  const result = await collection.deleteOne({
+    _id: new mongodb.ObjectId(req.params.id),
+  });
+  res.json(result);
+});
+
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
 });

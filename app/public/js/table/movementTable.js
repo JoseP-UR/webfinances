@@ -115,6 +115,7 @@ class MovementTable extends HTMLElement {
   }
 
   get _serverMovements() {
+    const localMovements = JSON.parse(localStorage.getItem("movements")) || [];
     localStorage.setItem("movements", JSON.stringify([]));
     this.updateTable();
     fetch("/api/movements")
@@ -122,6 +123,14 @@ class MovementTable extends HTMLElement {
       .then((movements) => {
         this.movements = movements;
         this.updateTable();
+      }).catch((error) => {
+        if (error.message === "Failed to fetch") {
+          this.localMode = true;
+          console.log("Failed to fetch movements from server");
+          console.log("Local mode activated");
+          this.movements = localMovements;
+          this.updateTable();
+        }
       });
     return [];
   }

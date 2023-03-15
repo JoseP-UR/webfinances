@@ -72,7 +72,9 @@ class MovementTable extends HTMLElement {
                         Page: <span id="currentPage">1</span>/<span id="totalPages">1</span>
                     </td>
                     <td colspan="5">
-                        Ammount total: <span id="movementTotal">0</span>
+                        Ammount total: <span id="movementTotal">0</span><br>
+                        Total Income: <span id="incomeTotal">0</span><br>
+                        Total Expenses: <span id="expenseTotal">0</span>
                     </td>
                     <td>
                         <button id="downloadBtn">Download</button>
@@ -131,6 +133,7 @@ class MovementTable extends HTMLElement {
   get movementsByMonthAndYear() {
     const movements = this.movements;
     const movementsByMonthAndYear = {};
+    movementsByMonthAndYear['All'] = [...movements];
     movements.forEach((movement) => {
       const month = movement.date.split("-")[1];
       const year = movement.date.split("-")[0];
@@ -159,6 +162,34 @@ class MovementTable extends HTMLElement {
     return this.movementsByMonthAndYear[selectedMonth].reduce(
       (acc, movement) => parseFloat(acc) + parseFloat(movement.amount),
       0
+    );
+  }
+
+  get incomeTotal() {
+    const selectedMonth = this.movementsByMonthAndYear[this.selectedMonth]
+      ? this.selectedMonth
+      : Object.keys(this.movementsByMonthAndYear)[0];
+    return this.movementsByMonthAndYear[selectedMonth].reduce(
+      (acc, movement) => {
+        if (movement.amount > 0) {
+          return parseFloat(acc) + parseFloat(movement.amount);
+        }
+        return acc;
+      }, 0
+    );
+  }
+
+  get expenseTotal() {
+    const selectedMonth = this.movementsByMonthAndYear[this.selectedMonth]
+      ? this.selectedMonth
+      : Object.keys(this.movementsByMonthAndYear)[0];
+    return this.movementsByMonthAndYear[selectedMonth].reduce(
+      (acc, movement) => {
+        if (movement.amount < 0) {
+          return parseFloat(acc) + parseFloat(movement.amount);
+        }
+        return acc;
+      }, 0
     );
   }
 
@@ -319,6 +350,8 @@ class MovementTable extends HTMLElement {
       tr.querySelector(".editBtn").addEventListener("click", this.handleEdit);
     });
     this.table.querySelector("#movementTotal").innerHTML = `${this.total}`;
+    this.table.querySelector("#incomeTotal").innerHTML = `${this.incomeTotal}`;
+    this.table.querySelector("#expenseTotal").innerHTML = `${this.expenseTotal}`;
     this.table.querySelector("#currentPage").innerHTML = `${this.currentPage}`;
     this.table.querySelector("#totalPages").innerHTML = `${Math.ceil(
       this.movementsByMonthAndYear[selectedMonth].length / this.pageSize
@@ -327,7 +360,7 @@ class MovementTable extends HTMLElement {
   }
 
   renderMonthsTabs() {
-    const tabNames = Object.keys(this.movementsByMonthAndYear);
+    const tabNames = Object.keys(this.movementsByMonthAndYear); 
     const tabButtons = tabNames.map((tabName) => {
       const button = document.createElement("button");
       button.value = tabName;
